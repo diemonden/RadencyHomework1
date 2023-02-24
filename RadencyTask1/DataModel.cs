@@ -6,20 +6,25 @@ using System.Globalization;
 
 namespace RadencyTask1
 {
-    class InputData
+    public class InputData : InputDataCSV
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
         public string City { get; set; }
+        /*
         public string Street { get; set; }
         public int HouseNumber { get; set; }
         public int AppartmentNumber { get; set; }
+        */
+    }
+    public class InputDataCSV
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Address { get; set; }
         public decimal Payment { get; set; }
         public DateTime Date { get; set; }
         public long AccountNumber { get; set; }
         public string Service { get; set; }
     }
-
     abstract class AbstractNameble
     {
         public string Name { get; set; }

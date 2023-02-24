@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Globalization;
+using CsvHelper;
+using CsvHelper.Configuration;
+using System.Linq;
 
 namespace RadencyTask1
 {
@@ -32,12 +35,14 @@ namespace RadencyTask1
                 throw new Exception("Last name is required.");
             if (string.IsNullOrEmpty(record.City))
                 throw new Exception("Address c is required.");
+            /*
             if (string.IsNullOrEmpty(record.Street))
                 throw new Exception("Address s is required.");
             if (record.HouseNumber < 0)
                 throw new Exception("Address h is required.");
             if (record.AppartmentNumber < 0)
                 throw new Exception("Address a is required.");
+                 */
             if (record.Payment < 0)
                 throw new Exception("Payment amount cannot be negative.");
             if (record.Date > DateTime.Now)
@@ -49,46 +54,6 @@ namespace RadencyTask1
             if (string.IsNullOrEmpty(record.Service))
                 throw new Exception("Service is required.");
         }
-
-        private List<InputData> ReadPaymentRecordsFromFile(string filePath)
-        {
-            var paymentRecords = new List<InputData>();
-            
-            using (var reader = new StreamReader(filePath))
-            {
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-                    var values = line.Split(", ");
-
-                    
-                    if (values.Length < 10)
-                    {
-                        // handle the case where the line doesn't have enough values
-                        continue; // skip this line and move on to the next one
-                    }
-                    
-                    var record = new InputData
-                    {
-                        FirstName = values[0].Trim(),
-                        LastName = values[1].Trim(),
-                        City = values[2].Trim().Remove(0,1),
-                        Street = values[3].Trim(),
-                        HouseNumber = int.Parse(values[4].Trim()),
-                        AppartmentNumber = int.Parse(values[5].Trim().Remove(values[5].Length - 1, 1)),
-                        Payment = decimal.Parse(values[6].Trim(), CultureInfo.InvariantCulture),
-                        Date = DateTime.ParseExact(values[7].Trim(), "yyyy-dd-MM", CultureInfo.InvariantCulture),
-                        AccountNumber = long.Parse(values[8].Trim()),
-                        Service = values[9].Trim()
-                    };
-                    
-                    paymentRecords.Add(record);
-                }
-            }
-            return paymentRecords;
-        }
-
-      
         //new
         private void SaveOutputDataToFile(List<InputData> data, string filePath)
         {
@@ -126,8 +91,9 @@ namespace RadencyTask1
                         if (IsAcceptedFormat(file))
                         {
                             file_id++;
-                            var paymentRecords = ReadPaymentRecordsFromFile(file);
-                            
+                            //var paymentRecords = ReadPaymentRecordsFromFile(file);
+                            IFileProcessor fileProcessor = FileProcessorFactory.CreateFileProcessor(file);
+                            var paymentRecords = fileProcessor.ProcessFile(file);
                             foreach (var record in paymentRecords)
                             {
                                 ValidatePaymentRecord(record);
