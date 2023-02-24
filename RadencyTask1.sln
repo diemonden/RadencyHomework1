@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.2017
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RadencyTask1", "RadencyTask1\RadencyTask1.csproj", "{66DE3BEA-C4FD-42C7-894B-EB3F5FBA7593}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{66DE3BEA-C4FD-42C7-894B-EB3F5FBA7593}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66DE3BEA-C4FD-42C7-894B-EB3F5FBA7593}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{66DE3BEA-C4FD-42C7-894B-EB3F5FBA7593}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66DE3BEA-C4FD-42C7-894B-EB3F5FBA7593}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0AFC0460-2484-4F3B-9D15-C1E079B387FE}
+	EndGlobalSection
+EndGlobal
