@@ -52,23 +52,26 @@ namespace RadencyTask1
                 {
                     var line = reader.ReadLine();
                     var values = SplitLine(line);
+                    InputData record;
                     if (values.Length != 7)
                     {
-                        throw new InvalidDataException("Invalid line: " + line);
+                        //it will be wrong on validation
+                        record = new InputData();
                     }
-
-                    var record = new InputData
+                    else
                     {
-                        FirstName = values[0],
-                        LastName = values[1],
-                        City = values[2].Substring(0, values[2].IndexOf(',')),
-                        Address = values[2],
-                        Payment = decimal.Parse(values[3], CultureInfo.InvariantCulture),
-                        Date = DateTime.ParseExact(values[4], "yyyy-dd-MM", CultureInfo.InvariantCulture),
-                        AccountNumber = long.Parse(values[5]),
-                        Service = values[6]
-                    };
-
+                        record = new InputData
+                        {
+                            FirstName = values[0],
+                            LastName = values[1],
+                            City = values[2].Substring(0, values[2].IndexOf(',')),
+                            Address = values[2],
+                            Payment = decimal.Parse(values[3], CultureInfo.InvariantCulture),
+                            Date = DateTime.ParseExact(values[4], "yyyy-dd-MM", CultureInfo.InvariantCulture),
+                            AccountNumber = long.Parse(values[5]),
+                            Service = values[6]
+                        };
+                    }
                     paymentRecords.Add(record);
                 }
             }

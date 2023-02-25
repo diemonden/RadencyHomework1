@@ -24,7 +24,7 @@ namespace RadencyTask1
             {
                 var inputFolder = ConfigurationManager.AppSettings["inputFilePath"];
                 var outputFolder = ConfigurationManager.AppSettings["outputFilePath"];
-                var countFile = ConfigurationManager.AppSettings["todayCountFilePath"];
+                var todayInfo = ConfigurationManager.AppSettings["todayInfoFilePath"];
                 PrintCommands();
                 while (true)
                 {
@@ -32,12 +32,14 @@ namespace RadencyTask1
                     string[] startCommands = new[] { "1", "2", "3" };
                     if (startCommands.Contains(input))
                     {
-                        var processor = new FileProcessor(inputFolder, outputFolder+"output",countFile);
+                        var processor = new FileProcessor(inputFolder, outputFolder, todayInfo);
                         if (input == "1" || input == "3")
                             processor.ProcessExistingFiles();
                         if (input == "1"  || input == "2")
+                        {
                             processor.StartWatcher();
-                        Console.WriteLine("Watcher stoped.");
+                            Console.WriteLine("Watcher stoped.");
+                        }
                         PrintCommands();
                     }
                     else if (input == "4")
@@ -51,7 +53,6 @@ namespace RadencyTask1
                         Console.WriteLine("Wrong Command. Try again");
                     }
                 }
-
             }
             else
             {

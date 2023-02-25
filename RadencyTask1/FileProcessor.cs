@@ -2,32 +2,86 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
+using System.Linq;
+using System.Threading;
 
 namespace RadencyTask1
 {
-    //todo: validation
-    //      logging and folders by date
+    //todo: 
+    //      concurency
+    //      dont read in archive
     class FileProcessor
     {
-        private string inputFolder;
-        private string outputFilePath;
-        private string countFile;
+        static private string inputFolder;
+        static private string outputFilePath;
+        static private string outputDayFilePath;
+        static private string todayInfoFilePath;
         //meta.log fields
-        private List<string> invalidFiles = new List<string>();
-        private int found_errors = 0;
-        private int parsed_files = 0;
-        private int parsed_lines = 0;
+        static private List<string> invalidFiles = new List<string>();
+        static private string invalidFilesString = "";
+        static private int found_errors = 0;
+        static private int parsed_files = 0;
+        static private int parsed_lines = 0;
+        static private string pastDateString = "";
         //todays file count
         private int file_id = 0;
-
-        public FileProcessor(string inputFolder, string outputFilePath, string countFile)
+        
+        public void WriteMetaLog(string filePath)
         {
-            this.inputFolder = inputFolder;
-            this.outputFilePath = outputFilePath;
-            this.countFile = countFile;
-            file_id = ReadCount();
+            using (StreamWriter writer = new StreamWriter(filePath))
+            {
+                writer.WriteLine($"parsed_files: {parsed_files}");
+                writer.WriteLine($"parsed_lines: {parsed_lines}");
+                writer.WriteLine($"found_errors: {found_errors}");
+                writer.WriteLine("invalid_files: {invalidFilesString} ]");
+            }
+        }
+        public FileProcessor(string _inputFolder, string _outputFilePath, string _todayInfoFilePath)
+        {
+            inputFolder = _inputFolder;
+            outputFilePath = _outputFilePath;
+            todayInfoFilePath = _todayInfoFilePath;
+            ReadTodayInfo();
+            if (pastDateString != DateTime.Now.ToString("MM-dd-yyyy"))
+            {
+                var pastMetaLogPath = Path.Combine(outputFilePath, pastDateString, "meta.log");
+                if (!File.Exists(pastMetaLogPath))
+                {
+                    WriteMetaLog(pastMetaLogPath);
+                }
+            }
+            var todayFolder = Path.Combine(outputFilePath, DateTime.Now.ToString("MM-dd-yyyy"));
+            if (!Directory.Exists(todayFolder))
+                Directory.CreateDirectory(todayFolder);
+            outputDayFilePath = Path.Combine(todayFolder, "output");
+            // set up timer to trigger at midnight
+            var now = DateTime.Now;
+            var startOfDay = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0);
+            var timeUntilMidnight = startOfDay.AddDays(1) - now;
+            var timer = new Timer(TimerCallback, null, timeUntilMidnight, TimeSpan.FromDays(1));
         }
 
+        private void TimerCallback(object state)
+        {
+            // create meta.log file in subfolder C
+            string filePath = Path.Combine(outputDayFilePath, "meta.log");
+
+            invalidFilesString = string.Join(", ", invalidFiles.Select(f => $"\"{f}\""));
+            using (StreamWriter writer = new StreamWriter(filePath))
+            {
+                writer.WriteLine($"parsed_files: {parsed_files}");
+                writer.WriteLine($"parsed_lines: {parsed_lines}");
+                writer.WriteLine($"found_errors: {found_errors}");
+                writer.WriteLine("invalid_files: {invalidFilesString} ]");
+            }
+
+            // reset statistics
+            parsed_files = 0;
+            parsed_lines = 0;
+            found_errors = 0;
+            invalidFiles.Clear();
+            pastDateString = DateTime.Now.ToString("MM-dd-yyyy");
+        }
         private bool IsAcceptedFormat(string filePath)
         {
             var ext = Path.GetExtension(filePath).ToLower();
@@ -35,32 +89,25 @@ namespace RadencyTask1
             return ext == ".txt" || ext == ".csv";
         }
         //?
-        private void ValidatePaymentRecord(InputData record)
+        private bool ValidatePaymentRecord(InputData record)
         {
             if (string.IsNullOrEmpty(record.FirstName))
-                throw new Exception("First name is required.");
+                return false;
             if (string.IsNullOrEmpty(record.LastName))
-                throw new Exception("Last name is required.");
+                return false;
+            if (string.IsNullOrEmpty(record.Address))
+                return false;
             if (string.IsNullOrEmpty(record.City))
-                throw new Exception("Address c is required.");
-            /*
-            if (string.IsNullOrEmpty(record.Street))
-                throw new Exception("Address s is required.");
-            if (record.HouseNumber < 0)
-                throw new Exception("Address h is required.");
-            if (record.AppartmentNumber < 0)
-                throw new Exception("Address a is required.");
-                 */
+                return false;
             if (record.Payment < 0)
-                throw new Exception("Payment amount cannot be negative.");
+                return false;
             if (record.Date > DateTime.Now)
-                throw new Exception("Payment date cannot be in the future.");
-            /*
+                return false;
             if (record.AccountNumber <= 0)
-                throw new Exception("Account number is invalid.");
-                */
+                return false;
             if (string.IsNullOrEmpty(record.Service))
                 throw new Exception("Service is required.");
+            return true;
         }
 
         //new
@@ -83,6 +130,13 @@ namespace RadencyTask1
 
             var fileName = Path.GetFileName(filePath);
             var archivePath = Path.Combine(archiveFolder, fileName);
+
+            if (File.Exists(archivePath))
+            {
+                // Generate a new name for the file by adding a timestamp to the end
+                var newFileName = Path.GetFileNameWithoutExtension(fileName) + "_" + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(fileName);
+                archivePath = Path.Combine(archiveFolder, newFileName);
+            }
 
             File.Move(filePath, archivePath);
         }
@@ -107,7 +161,7 @@ namespace RadencyTask1
             try
             {
                 var watcher = new FileSystemWatcher(inputFolder);
-                watcher.Filter = "*.txt"; // only watch for txt files
+                watcher.Filter = "";
                 watcher.IncludeSubdirectories = false; // only watch the specified folder
                 watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
                 watcher.Changed += OnChanged;
@@ -119,7 +173,7 @@ namespace RadencyTask1
                 watcher.Dispose();
                 if (command == 2)
                     StartWatcher();
-                SaveCount();
+                SaveTodayInfo();
             }
             catch (Exception ex)
             {
@@ -139,13 +193,13 @@ namespace RadencyTask1
         {
             try
             {
-                var files = Directory.GetFiles(inputFolder);
+                var files = Directory.GetFiles(inputFolder,"*.*",SearchOption.TopDirectoryOnly);
 
                 foreach (var file in files)
                 {
                     ProcessFile(file);
                 }
-                SaveCount();
+                SaveTodayInfo();
             }
             catch (Exception ex)
             {
@@ -159,47 +213,80 @@ namespace RadencyTask1
             {
                 try
                 {
+                    bool isValid = true;
                     file_id++;
                     Console.WriteLine($"Processing file {file}...");
                     IFileProcessor fileProcessor = FileProcessorFactory.CreateFileProcessor(file);
                     var paymentRecords = fileProcessor.ProcessFile(file);
                     foreach (var record in paymentRecords)
                     {
-                        ValidatePaymentRecord(record);
+                        if (ValidatePaymentRecord(record))
+                            parsed_lines++;
+                        else
+                        {
+                            found_errors++;
+                            isValid = false;
+                            paymentRecords.Remove(record);
+                        }
+                            
                     }
-                    SaveOutputDataToFile(paymentRecords, outputFilePath + file_id + ".json");
-                    //ArchiveFile(file);
+                    SaveOutputDataToFile(paymentRecords, outputDayFilePath + file_id + ".json");
+                    ArchiveFile(file);
                     Console.WriteLine($"Finished processing file {file}.");
+                    parsed_files++;
+                    if (!isValid)
+                        invalidFiles.Add(file);
                 }
                 catch(Exception ex)
                 {
                     Console.WriteLine("An error occurred: " + ex.Message);
                 }
             }
+            else
+            {
+                invalidFiles.Add(file);
+            }
         }
-
-        public void WriteMetaLog() {
-
-        }
-
-        public void SaveCount()
+        
+        public void SaveTodayInfo()
         {
-            using (var writer = new StreamWriter(countFile, false))
+            using (var writer = new StreamWriter(todayInfoFilePath, false))
             {
                 writer.WriteLine(file_id);
+                writer.WriteLine(parsed_files);
+                writer.WriteLine(parsed_lines);
+                writer.WriteLine(found_errors);
+                writer.WriteLine(invalidFilesString);
+                writer.WriteLine(DateTime.Now.ToString("MM-dd-yyyy"));
             }
         }
-        public int ReadCount()
+        public void ReadTodayInfo()
         {
-            var countFile = ConfigurationManager.AppSettings["todayCountFilePath"];
+            var countFile = ConfigurationManager.AppSettings["todayInfoFilePath"];
             if (File.Exists(countFile))
             {
-                using (var reader = new StreamReader(countFile))
+                try
                 {
-                    return int.Parse(reader.ReadLine());
+                    using (var reader = new StreamReader(countFile))
+                    {
+                        file_id = int.Parse(reader.ReadLine());
+                        parsed_files = int.Parse(reader.ReadLine());
+                        parsed_lines = int.Parse(reader.ReadLine());
+                        found_errors = int.Parse(reader.ReadLine());
+                        invalidFilesString = reader.ReadLine();
+                        invalidFiles = invalidFilesString.Split(", ").ToList();
+                        pastDateString = reader.ReadLine();
+                    }
+                } catch (Exception ex)
+                {
+                    SaveTodayInfo();
                 }
+                
             }
-            return 0;
+        }
+        ~FileProcessor()
+        {
+            SaveTodayInfo();
         }
     }
 }
