@@ -93,7 +93,7 @@ namespace RadencyTask1
             stringBuilder.Append(Spaces(spaces) + "{\n");
             stringBuilder.Append(Spaces(++spaces) + "\"name\": \"" + Name + "\",\n");
             stringBuilder.Append(Spaces(spaces) + "\"payment\": " + Payment.ToString(CultureInfo.InvariantCulture) + ",\n");
-            stringBuilder.Append(Spaces(spaces) + "\"date\": " + Date.ToString("yyyy-dd-MM") + ",\n");
+            stringBuilder.Append(Spaces(spaces) + "\"date\": \"" + Date.ToString("yyyy-dd-MM") + "\",\n");
             stringBuilder.Append(Spaces(spaces) + "\"account_number\": " + AccountNumber + "\n");
             stringBuilder.Append(Spaces(--spaces) + "}");
 

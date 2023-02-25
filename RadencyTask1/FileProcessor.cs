@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Globalization;
-using CsvHelper;
-using CsvHelper.Configuration;
-using System.Linq;
 
 namespace RadencyTask1
 {
@@ -77,41 +73,93 @@ namespace RadencyTask1
 
             File.Move(filePath, archivePath);
         }
-        public void Run()
+        private int ReadFSWCommand()
         {
             while (true)
             {
+                Console.WriteLine("Type 1 to stop, 2 to restart");
+                string command = Console.ReadLine();
+                switch (command)
+                {
+                    case "1": return 1;
+                    case "2": return 2;
+                    default: continue;
+                }
+            }
+        }
+        public void StartWatcher()
+        {
+            try
+            {
+                var watcher = new FileSystemWatcher(inputFolder);
+                watcher.Filter = "*.txt"; // only watch for txt files
+                watcher.IncludeSubdirectories = false; // only watch the specified folder
+                watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
+                watcher.Changed += OnChanged;
+                watcher.Created += OnChanged;
+                watcher.EnableRaisingEvents = true;
+
+                Console.WriteLine($"Watching folder {inputFolder} for new txt files...");
+                int command = ReadFSWCommand();
+                watcher.Dispose();
+                if (command == 2)
+                    StartWatcher();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+        }
+
+        static private int file_id = 0;
+
+        private void OnChanged(object sender, FileSystemEventArgs e)
+        {
+            if (e.ChangeType == WatcherChangeTypes.Changed || e.ChangeType == WatcherChangeTypes.Created)
+            {
+                ProcessFile(e.FullPath);
+            }
+        }
+        public void ProcessExistingFiles()
+        {
+            try
+            {
+                var files = Directory.GetFiles(inputFolder);
+
+                foreach (var file in files)
+                {
+                    ProcessFile(file);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+        }
+
+        public void ProcessFile(string file)
+        {
+            if (IsAcceptedFormat(file))
+            {
+
                 try
                 {
-                    var files = Directory.GetFiles(inputFolder);
-                    int file_id = 0;
-
-                    foreach (var file in files)
+                    file_id++;
+                    Console.WriteLine($"Processing file {file}...");
+                    IFileProcessor fileProcessor = FileProcessorFactory.CreateFileProcessor(file);
+                    var paymentRecords = fileProcessor.ProcessFile(file);
+                    foreach (var record in paymentRecords)
                     {
-                        if (IsAcceptedFormat(file))
-                        {
-                            file_id++;
-                            //var paymentRecords = ReadPaymentRecordsFromFile(file);
-                            IFileProcessor fileProcessor = FileProcessorFactory.CreateFileProcessor(file);
-                            var paymentRecords = fileProcessor.ProcessFile(file);
-                            foreach (var record in paymentRecords)
-                            {
-                                ValidatePaymentRecord(record);
-                            }
-
-                            SaveOutputDataToFile(paymentRecords, outputFilePath + file_id + ".json");
-
-                            //ArchiveFile(file);
-                        }
+                        ValidatePaymentRecord(record);
                     }
+                    SaveOutputDataToFile(paymentRecords, outputFilePath + file_id + ".json");
+                    //ArchiveFile(file);
+                    Console.WriteLine($"Finished processing file {file}.");
                 }
-                catch (Exception ex)
+                catch(Exception ex)
                 {
                     Console.WriteLine("An error occurred: " + ex.Message);
                 }
-
-                // Sleep before processing the next batch of files
-                System.Threading.Thread.Sleep(50000);
             }
         }
     }

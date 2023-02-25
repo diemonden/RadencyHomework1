@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace RadencyTask1
 {
@@ -53,7 +52,6 @@ namespace RadencyTask1
                 {
                     var line = reader.ReadLine();
                     var values = SplitLine(line);
-                    Console.WriteLine(values.Length);
                     if (values.Length != 7)
                     {
                         throw new InvalidDataException("Invalid line: " + line);
