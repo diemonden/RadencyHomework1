@@ -28,7 +28,6 @@ namespace RadencyTask1
     abstract class AbstractNameble
     {
         public string Name { get; set; }
-
         protected static string Spaces(int n)
         {
             return new string(' ', n);
@@ -37,20 +36,25 @@ namespace RadencyTask1
         {
             return "";
         }
+
+        public virtual decimal CountTotal()
+        {
+            return 0;
+        }
     }
 
     abstract class AbstractGroup<T> : AbstractNameble where T : AbstractNameble, new()
     {
         public List<T> list = new List<T>();
-        public decimal total = 0;
+        public decimal Total { get; set; }
 
-        public T AddUnique(string name)
+        public  T AddUnique(string name)
         {
             if (!list.Any(c => c.Name == name))
             {
                 list.Add(new T { Name = name });
             }
-            return list.Find(i => i.Name == name);
+            return list[list.Count-1];
         }
 
         public override string getJSONString(int spaces = 0)
@@ -73,19 +77,29 @@ namespace RadencyTask1
                     .Append(((count != list.Count) ? "," : "") + "\n");
             }
             stringBuilder.Append(Spaces(spaces + 2) + "],\n");
-            stringBuilder.Append(Spaces(spaces + 1) + "\"total\": " + total + "\n");
+            stringBuilder.Append(Spaces(spaces + 1) + "\"total\": " + Total.ToString(CultureInfo.InvariantCulture) + "\n");
             stringBuilder.Append(Spaces(spaces) + "}");
 
             return stringBuilder.ToString();
+        }
+
+        public override decimal CountTotal()
+        {
+            foreach (var item in list)
+            {
+                Total += item.CountTotal();
+            }
+            return Total;
         }
     }
 
     class Payer : AbstractNameble
     {
-        public decimal Payment { get; set; }
+        public decimal Payment { get; set;}
         public DateTime Date { get; set; }
         public long AccountNumber { get; set; }
 
+        
         public override string getJSONString(int spaces = 0)
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -99,15 +113,27 @@ namespace RadencyTask1
 
             return stringBuilder.ToString();
         }
+        public override decimal CountTotal()
+        {
+            return Payment;
+        }
     }
 
     class Service : AbstractGroup<Payer>
     {
-
+        public void AddUnique(Payer payer)
+        {
+           
+            var p1 = list.Find(p => p.Name == payer.Name && p.AccountNumber == payer.AccountNumber);
+            if (p1 == null)
+                list.Add(payer);
+            else
+                p1.Payment += payer.Payment;
+        }
     }
     class City : AbstractGroup<Service>
     {
-
+       
     }
     class AllData : AbstractGroup<City>
     {
@@ -118,7 +144,7 @@ namespace RadencyTask1
             {
                 AddUnique(dataString.City)
                 .AddUnique(dataString.Service)
-                .list.Add(new Payer
+                .AddUnique(new Payer
                 {
                     Name = dataString.FirstName + " " + dataString.LastName,
                     AccountNumber = dataString.AccountNumber,
@@ -126,6 +152,7 @@ namespace RadencyTask1
                     Date = dataString.Date
                 });
             }
+            CountTotal();
         }
         public string getJSONString()
         {
@@ -141,5 +168,6 @@ namespace RadencyTask1
             stringBuilder.Append("]");
             return stringBuilder.ToString();
         }
+        
     }
 }

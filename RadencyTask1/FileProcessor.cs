@@ -1,19 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 
 namespace RadencyTask1
 {
-    
+    //todo: validation
+    //      logging and folders by date
     class FileProcessor
     {
         private string inputFolder;
         private string outputFilePath;
+        private string countFile;
+        //meta.log fields
+        private List<string> invalidFiles = new List<string>();
+        private int found_errors = 0;
+        private int parsed_files = 0;
+        private int parsed_lines = 0;
+        //todays file count
+        private int file_id = 0;
 
-        public FileProcessor(string inputFolder, string outputFilePath)
+        public FileProcessor(string inputFolder, string outputFilePath, string countFile)
         {
             this.inputFolder = inputFolder;
             this.outputFilePath = outputFilePath;
+            this.countFile = countFile;
+            file_id = ReadCount();
         }
 
         private bool IsAcceptedFormat(string filePath)
@@ -50,6 +62,7 @@ namespace RadencyTask1
             if (string.IsNullOrEmpty(record.Service))
                 throw new Exception("Service is required.");
         }
+
         //new
         private void SaveOutputDataToFile(List<InputData> data, string filePath)
         {
@@ -57,7 +70,7 @@ namespace RadencyTask1
 
             string jsonString = allData.getJSONString();
             Console.WriteLine(jsonString);
-            using (var writer = new StreamWriter(filePath, true)) { 
+            using (var writer = new StreamWriter(filePath, false)) { 
                 writer.WriteLine(jsonString);
             }
         }
@@ -73,6 +86,7 @@ namespace RadencyTask1
 
             File.Move(filePath, archivePath);
         }
+
         private int ReadFSWCommand()
         {
             while (true)
@@ -87,6 +101,7 @@ namespace RadencyTask1
                 }
             }
         }
+
         public void StartWatcher()
         {
             try
@@ -104,14 +119,13 @@ namespace RadencyTask1
                 watcher.Dispose();
                 if (command == 2)
                     StartWatcher();
+                SaveCount();
             }
             catch (Exception ex)
             {
                 Console.WriteLine("An error occurred: " + ex.Message);
             }
         }
-
-        static private int file_id = 0;
 
         private void OnChanged(object sender, FileSystemEventArgs e)
         {
@@ -120,6 +134,7 @@ namespace RadencyTask1
                 ProcessFile(e.FullPath);
             }
         }
+
         public void ProcessExistingFiles()
         {
             try
@@ -130,6 +145,7 @@ namespace RadencyTask1
                 {
                     ProcessFile(file);
                 }
+                SaveCount();
             }
             catch (Exception ex)
             {
@@ -141,7 +157,6 @@ namespace RadencyTask1
         {
             if (IsAcceptedFormat(file))
             {
-
                 try
                 {
                     file_id++;
@@ -161,6 +176,30 @@ namespace RadencyTask1
                     Console.WriteLine("An error occurred: " + ex.Message);
                 }
             }
+        }
+
+        public void WriteMetaLog() {
+
+        }
+
+        public void SaveCount()
+        {
+            using (var writer = new StreamWriter(countFile, false))
+            {
+                writer.WriteLine(file_id);
+            }
+        }
+        public int ReadCount()
+        {
+            var countFile = ConfigurationManager.AppSettings["todayCountFilePath"];
+            if (File.Exists(countFile))
+            {
+                using (var reader = new StreamReader(countFile))
+                {
+                    return int.Parse(reader.ReadLine());
+                }
+            }
+            return 0;
         }
     }
 }
