@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace RadencyTask1
 {
@@ -46,11 +47,10 @@ namespace RadencyTask1
         {
             var paymentRecords = new List<InputData>();
 
-            using (var reader = new StreamReader(filePath))
-            {
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
+            //using (var reader = new StreamReader(filePath))
+            //{
+                Parallel.ForEach(File.ReadLines(filePath), line => {
+                    //var line = reader.ReadLine();
                     var values = SplitLine(line);
                     InputData record;
                     if (values.Length != 7)
@@ -73,9 +73,38 @@ namespace RadencyTask1
                         };
                     }
                     paymentRecords.Add(record);
+                });
+            /*
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                var values = SplitLine(line);
+                InputData record;
+                if (values.Length != 7)
+                {
+                    //it will be wrong on validation
+                    record = new InputData();
                 }
+                else
+                {
+                    record = new InputData
+                    {
+                        FirstName = values[0],
+                        LastName = values[1],
+                        City = values[2].Substring(0, values[2].IndexOf(',')),
+                        Address = values[2],
+                        Payment = decimal.Parse(values[3], CultureInfo.InvariantCulture),
+                        Date = DateTime.ParseExact(values[4], "yyyy-dd-MM", CultureInfo.InvariantCulture),
+                        AccountNumber = long.Parse(values[5]),
+                        Service = values[6]
+                    };
+                }
+                paymentRecords.Add(record);
             }
-            return paymentRecords;
+*/
+//        }
+        
+                return paymentRecords;
         }
     }
 
@@ -110,10 +139,16 @@ namespace RadencyTask1
                     paymentRecords = csv.GetRecords<InputData>().ToList();
                 }
             }
+            Parallel.ForEach(paymentRecords, record => {
+                record.City = record.Address.Substring(0, record.Address.IndexOf(','));
+            });
+            
+            /*
             foreach (var record in paymentRecords)
             {
                 record.City = record.Address.Substring(0, record.Address.IndexOf(','));
             }
+            */
             return paymentRecords;
         }
     }

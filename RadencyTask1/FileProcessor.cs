@@ -4,25 +4,25 @@ using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace RadencyTask1
 {
-    //todo: 
-    //      concurency
-    //      dont read in archive
+    //todo: check on invalid data
+    //  SOLID
     class FileProcessor
     {
-        static private string inputFolder;
-        static private string outputFilePath;
-        static private string outputDayFilePath;
-        static private string todayInfoFilePath;
+        private string inputFolder;
+        private string outputFilePath;
+        private string outputDayFilePath;
+        private string todayInfoFilePath;
         //meta.log fields
-        static private List<string> invalidFiles = new List<string>();
-        static private string invalidFilesString = "";
-        static private int found_errors = 0;
-        static private int parsed_files = 0;
-        static private int parsed_lines = 0;
-        static private string pastDateString = "";
+        private List<string> invalidFiles = new List<string>();
+        private string invalidFilesString = "";
+        private int found_errors = 0;
+        private int parsed_files = 0;
+        private int parsed_lines = 0;
+        private string pastDateString = "";
         //todays file count
         private int file_id = 0;
         
@@ -33,7 +33,7 @@ namespace RadencyTask1
                 writer.WriteLine($"parsed_files: {parsed_files}");
                 writer.WriteLine($"parsed_lines: {parsed_lines}");
                 writer.WriteLine($"found_errors: {found_errors}");
-                writer.WriteLine("invalid_files: {invalidFilesString} ]");
+                writer.WriteLine($"invalid_files: [{invalidFilesString}]");
             }
         }
         public FileProcessor(string _inputFolder, string _outputFilePath, string _todayInfoFilePath)
@@ -76,6 +76,7 @@ namespace RadencyTask1
             }
 
             // reset statistics
+            file_id = 0;
             parsed_files = 0;
             parsed_lines = 0;
             found_errors = 0;
@@ -117,8 +118,8 @@ namespace RadencyTask1
 
             string jsonString = allData.getJSONString();
             Console.WriteLine(jsonString);
-            using (var writer = new StreamWriter(filePath, false)) { 
-                writer.WriteLine(jsonString);
+            using (var writer = new StreamWriter(filePath, false)) {
+                    writer.WriteLine(jsonString);
             }
         }
 
@@ -145,7 +146,7 @@ namespace RadencyTask1
         {
             while (true)
             {
-                Console.WriteLine("Type 1 to stop, 2 to restart");
+                Console.WriteLine("Type 1 to stop Watcher, 2 to restart");
                 string command = Console.ReadLine();
                 switch (command)
                 {
@@ -183,10 +184,15 @@ namespace RadencyTask1
 
         private void OnChanged(object sender, FileSystemEventArgs e)
         {
-            if (e.ChangeType == WatcherChangeTypes.Changed || e.ChangeType == WatcherChangeTypes.Created)
+            if(e.ChangeType == WatcherChangeTypes.Changed || e.ChangeType == WatcherChangeTypes.Created)
             {
-                ProcessFile(e.FullPath);
-            }
+                //if adding multiple files
+                var files = Directory.GetFiles(inputFolder, "*.*", SearchOption.TopDirectoryOnly);
+                Parallel.ForEach(files, file =>
+                {
+                    ProcessFile(file);
+                });
+            } 
         }
 
         public void ProcessExistingFiles()
@@ -194,12 +200,12 @@ namespace RadencyTask1
             try
             {
                 var files = Directory.GetFiles(inputFolder,"*.*",SearchOption.TopDirectoryOnly);
-
-                foreach (var file in files)
-                {
-                    ProcessFile(file);
-                }
+                Parallel.ForEach(files, file =>
+                 {
+                     ProcessFile(file);
+                 });
                 SaveTodayInfo();
+
             }
             catch (Exception ex)
             {
@@ -214,11 +220,11 @@ namespace RadencyTask1
                 try
                 {
                     bool isValid = true;
-                    file_id++;
+                    
                     Console.WriteLine($"Processing file {file}...");
                     IFileProcessor fileProcessor = FileProcessorFactory.CreateFileProcessor(file);
                     var paymentRecords = fileProcessor.ProcessFile(file);
-                    foreach (var record in paymentRecords)
+                    Parallel.ForEach(paymentRecords, record =>
                     {
                         if (ValidatePaymentRecord(record))
                             parsed_lines++;
@@ -228,9 +234,15 @@ namespace RadencyTask1
                             isValid = false;
                             paymentRecords.Remove(record);
                         }
-                            
+
+                    });
+
+                    lock (paymentRecords)
+                    {
+                        file_id++;
+                        SaveOutputDataToFile(paymentRecords, outputDayFilePath + file_id + ".json");
                     }
-                    SaveOutputDataToFile(paymentRecords, outputDayFilePath + file_id + ".json");
+                    
                     ArchiveFile(file);
                     Console.WriteLine($"Finished processing file {file}.");
                     parsed_files++;

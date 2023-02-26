@@ -11,9 +11,8 @@ namespace RadencyTask1
         static void PrintCommands()
         {
             Console.WriteLine("Write 1 if you want to watch new adding files and process existing.");
-            Console.WriteLine("Write 2 if you want to only watch new adding files");
-            Console.WriteLine("Write 3 if you want to only process existing files.");
-            Console.WriteLine("Write 4 if you want to EXIT");
+            Console.WriteLine("Write 2 if you want to only process existing files.");
+            Console.WriteLine("Write 3 if you want to EXIT");
 
         }
         static void Main(string[] args)
@@ -29,20 +28,19 @@ namespace RadencyTask1
                 while (true)
                 {
                     var input = Console.ReadLine();
-                    string[] startCommands = new[] { "1", "2", "3" };
-                    if (startCommands.Contains(input))
+                    if (input == "1" || input == "2")
                     {
                         var processor = new FileProcessor(inputFolder, outputFolder, todayInfo);
-                        if (input == "1" || input == "3")
-                            processor.ProcessExistingFiles();
-                        if (input == "1"  || input == "2")
+                        processor.ProcessExistingFiles();
+                        if (input == "1")
                         {
                             processor.StartWatcher();
                             Console.WriteLine("Watcher stoped.");
                         }
+                        Console.WriteLine("Files processed successfully.");
                         PrintCommands();
                     }
-                    else if (input == "4")
+                    else if (input == "3")
                     {
                         Console.WriteLine("Closing.. Press any buttton.");
                         Console.ReadKey();

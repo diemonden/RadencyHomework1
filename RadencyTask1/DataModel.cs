@@ -3,17 +3,13 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using System.Globalization;
+using System.Threading.Tasks;
 
 namespace RadencyTask1
 {
     public class InputData : InputDataCSV
     {
         public string City { get; set; }
-        /*
-        public string Street { get; set; }
-        public int HouseNumber { get; set; }
-        public int AppartmentNumber { get; set; }
-        */
     }
     public class InputDataCSV
     {
@@ -70,10 +66,11 @@ namespace RadencyTask1
             stringBuilder.Append(Spaces(spaces + 2) + "[\n");
 
             int count = 0;
+            
             foreach (T item in list)
             {
-                count++;
-                stringBuilder.Append(item.getJSONString(spaces + 3))
+               count++;
+               stringBuilder.Append(item.getJSONString(spaces + 3))
                     .Append(((count != list.Count) ? "," : "") + "\n");
             }
             stringBuilder.Append(Spaces(spaces + 2) + "],\n");
@@ -89,6 +86,7 @@ namespace RadencyTask1
             {
                 Total += item.CountTotal();
             }
+            
             return Total;
         }
     }
@@ -123,7 +121,6 @@ namespace RadencyTask1
     {
         public void AddUnique(Payer payer)
         {
-           
             var p1 = list.Find(p => p.Name == payer.Name && p.AccountNumber == payer.AccountNumber);
             if (p1 == null)
                 list.Add(payer);
@@ -152,6 +149,7 @@ namespace RadencyTask1
                     Date = dataString.Date
                 });
             }
+            
             CountTotal();
         }
         public string getJSONString()
