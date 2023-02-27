@@ -4,14 +4,19 @@ using System.Text;
 using System.Linq;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 namespace RadencyTask1
 {
-    public class InputData : InputDataCSV
+    public abstract class InputData
     {
-        public string City { get; set; }
+
     }
-    public class InputDataCSV
+    public class OtherData : InputData
+    {
+
+    }
+    public class PaymentData : InputData
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }
@@ -20,6 +25,9 @@ namespace RadencyTask1
         public DateTime Date { get; set; }
         public long AccountNumber { get; set; }
         public string Service { get; set; }
+        public string City { get; set; }
+
+        
     }
     abstract class AbstractNameble
     {
@@ -131,13 +139,20 @@ namespace RadencyTask1
     class City : AbstractGroup<Service>
     {
        
-    }
-    class AllData : AbstractGroup<City>
+    } 
+    public interface IAllData<T> where T : InputData
     {
-        public AllData(List<InputData> inputData)
+        void init(List<T> data);
+        string getJSONString();
+    }
+    class AllPaymentData : AbstractGroup<City>, IAllData<PaymentData>
+    {
+        
+        public void init(List<PaymentData> inputData)
         {
+            var sortedData = inputData.OrderBy(pd => pd.City);
             Name = "";
-            foreach (var dataString in inputData)
+            foreach (var dataString in sortedData)
             {
                 AddUnique(dataString.City)
                 .AddUnique(dataString.Service)
@@ -166,6 +181,7 @@ namespace RadencyTask1
             stringBuilder.Append("]");
             return stringBuilder.ToString();
         }
+
         
     }
 }

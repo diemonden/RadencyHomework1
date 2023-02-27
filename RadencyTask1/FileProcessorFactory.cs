@@ -2,6 +2,7 @@
 using CsvHelper.Configuration;
 using CsvHelper.TypeConversion;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -10,12 +11,12 @@ using System.Threading.Tasks;
 
 namespace RadencyTask1
 {
-    public interface IFileProcessor
+    public interface IFileProcessor<T> where T: InputData
     {
-        List<InputData> ProcessFile(string filePath);
+        ConcurrentBag<T> ProcessFile(string filePath);
     }
 
-    public class TxtFileProcessor : IFileProcessor
+    public class TxtPaymentFileProcessor : IFileProcessor<PaymentData>
     {
         private static string[] SplitLine(string line)
         {
@@ -43,76 +44,59 @@ namespace RadencyTask1
             return parts.ToArray();
         }
 
-        public List<InputData> ProcessFile(string filePath)
+        public ConcurrentBag<PaymentData> ProcessFile(string filePath)
         {
-            var paymentRecords = new List<InputData>();
-
-            //using (var reader = new StreamReader(filePath))
-            //{
+            var paymentRecords = new ConcurrentBag<PaymentData>();
+            try
+            {
                 Parallel.ForEach(File.ReadLines(filePath), line => {
-                    //var line = reader.ReadLine();
                     var values = SplitLine(line);
-                    InputData record;
+                    PaymentData record;
                     if (values.Length != 7)
                     {
                         //it will be wrong on validation
-                        record = new InputData();
+                        Console.WriteLine($"Line: {line} in file {filePath} has wrong args length.");
+                        record = new PaymentData();
                     }
                     else
                     {
-                        record = new InputData
+                        try
                         {
-                            FirstName = values[0],
-                            LastName = values[1],
-                            City = values[2].Substring(0, values[2].IndexOf(',')),
-                            Address = values[2],
-                            Payment = decimal.Parse(values[3], CultureInfo.InvariantCulture),
-                            Date = DateTime.ParseExact(values[4], "yyyy-dd-MM", CultureInfo.InvariantCulture),
-                            AccountNumber = long.Parse(values[5]),
-                            Service = values[6]
-                        };
+                            record = new PaymentData
+                            {
+                                FirstName = values[0],
+                                LastName = values[1],
+                                Address = values[2],
+                                City = values[2].Substring(1, values[2].IndexOf(',') - 1),
+                                Payment = decimal.Parse(values[3], CultureInfo.InvariantCulture),
+                                Date = DateTime.ParseExact(values[4], "yyyy-dd-MM", CultureInfo.InvariantCulture),
+                                AccountNumber = long.Parse(values[5]),
+                                Service = values[6]
+                            };
+                            
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Line: {line}  in file {filePath} throws exception: {ex}");
+                            record = new PaymentData();
+                        }
+                        paymentRecords.Add(record);
                     }
-                    paymentRecords.Add(record);
+                    
                 });
-            /*
-            while (!reader.EndOfStream)
+            } catch (Exception ex)
             {
-                var line = reader.ReadLine();
-                var values = SplitLine(line);
-                InputData record;
-                if (values.Length != 7)
-                {
-                    //it will be wrong on validation
-                    record = new InputData();
-                }
-                else
-                {
-                    record = new InputData
-                    {
-                        FirstName = values[0],
-                        LastName = values[1],
-                        City = values[2].Substring(0, values[2].IndexOf(',')),
-                        Address = values[2],
-                        Payment = decimal.Parse(values[3], CultureInfo.InvariantCulture),
-                        Date = DateTime.ParseExact(values[4], "yyyy-dd-MM", CultureInfo.InvariantCulture),
-                        AccountNumber = long.Parse(values[5]),
-                        Service = values[6]
-                    };
-                }
-                paymentRecords.Add(record);
+                Console.WriteLine(ex);
             }
-*/
-//        }
-        
-                return paymentRecords;
+            return paymentRecords;
         }
     }
 
-    public class CsvFileProcessor : IFileProcessor
+    public class CsvPaymentFileProcessor : IFileProcessor<PaymentData>
     {
-        public List<InputData> ProcessFile(string filePath)
+        public ConcurrentBag<PaymentData> ProcessFile(string filePath)
         {
-            var paymentRecords = new List<InputData>();
+            var paymentRecords = new ConcurrentBag<PaymentData>();
             using (var reader = new StreamReader(filePath))
             {
                 var csvConfig = new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -129,42 +113,55 @@ namespace RadencyTask1
                     // (optional, but recommended for better performance and less reflection overhead)
                     HasHeaderRecord = true,
                     TrimOptions = TrimOptions.Trim,
-
-                };
-                using (var csv = new CsvReader(reader, csvConfig))
+                   
+                    
+            };
+            using (var csv = new CsvReader(reader, csvConfig))
+            {
+                var options = new TypeConverterOptions { Formats = new[] { "yyyy-dd-MM" } };
+                    
+                csv.Context.TypeConverterOptionsCache.AddOptions<DateTime>(options);
+                csv.Read();
+                csv.ReadHeader();
+                while (csv.Read())
                 {
-                    var options = new TypeConverterOptions { Formats = new[] { "yyyy-dd-MM" } };
+                    try
+                    {
+                        //paymentRecords = csv.GetRecords<PaymentData>().ToList();
+                        var record = csv.GetRecord<PaymentData>();
+                        record.City = record.Address.Substring(0, record.Address.IndexOf(','));
+                        paymentRecords.Add(record);
 
-                    csv.Context.TypeConverterOptionsCache.AddOptions<DateTime>(options);
-                    paymentRecords = csv.GetRecords<InputData>().ToList();
+                    }
+                    catch (CsvHelperException)
+                    {
+
+                        paymentRecords.Add(new PaymentData());
+                    }
                 }
             }
-            Parallel.ForEach(paymentRecords, record => {
-                record.City = record.Address.Substring(0, record.Address.IndexOf(','));
-            });
-            
-            /*
-            foreach (var record in paymentRecords)
-            {
-                record.City = record.Address.Substring(0, record.Address.IndexOf(','));
             }
-            */
             return paymentRecords;
         }
     }
-
-    public static class FileProcessorFactory
+    
+    public interface IFileProcessorFactory<T> where T : InputData
     {
-        public static IFileProcessor CreateFileProcessor(string filePath)
+        IFileProcessor<T> CreateFileProcessor(string filePath);
+    }
+
+    public class PaymentFileProcessorFactory : IFileProcessorFactory<PaymentData>
+    {
+        public IFileProcessor<PaymentData> CreateFileProcessor(string filePath)
         {
             string extension = Path.GetExtension(filePath);
 
             switch (extension)
             {
                 case ".txt":
-                    return new TxtFileProcessor();
+                    return new TxtPaymentFileProcessor();
                 case ".csv":
-                    return new CsvFileProcessor();
+                    return new CsvPaymentFileProcessor();
                 default:
                     throw new ArgumentException("Unsupported file extension: " + extension);
             }

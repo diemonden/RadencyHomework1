@@ -30,7 +30,7 @@ namespace RadencyTask1
                     var input = Console.ReadLine();
                     if (input == "1" || input == "2")
                     {
-                        var processor = new FileProcessor(inputFolder, outputFolder, todayInfo);
+                        var processor = new FileProcessor<PaymentData,PaymentValidation,AllPaymentData, PaymentFileProcessorFactory>(inputFolder, outputFolder, todayInfo);
                         processor.ProcessExistingFiles();
                         if (input == "1")
                         {
